@@ -5,100 +5,226 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import ru.maxon.dao.UserDao;
+import org.springframework.data.domain.Sort;
 import ru.maxon.entity.User;
+import ru.maxon.exception.EmailAlreadyExistsException;
+import ru.maxon.exception.UserNotFoundException;
+import ru.maxon.repository.UserRepository;
 import ru.maxon.service.UserService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
+
     @Mock
-    private UserDao userDao;
+    private UserRepository userRepository;
 
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userDao);
+        userService = new UserService(userRepository);
     }
 
     @Test
-    void create_validData_delegatesToDao() {
+    void createShouldSaveUser() {
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.create(
+                " Maxim ",
+                " maxim@example.com ",
+                23
+        );
+
+        assertEquals("Maxim", result.getName());
+        assertEquals("maxim@example.com", result.getEmail());
+        assertEquals(23, result.getAge());
+
+        verify(userRepository).existsByEmail("maxim@example.com");
+        verify(userRepository).save(result);
+    }
+
+    @Test
+    void createShouldRejectDuplicateEmail() {
+        when(userRepository.existsByEmail("maxim@example.com"))
+                .thenReturn(true);
+
+        assertThrows(
+                EmailAlreadyExistsException.class,
+                () -> userService.create("Maxim", "maxim@example.com", 23)
+        );
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void createShouldRejectInvalidData() {
+        assertAll(
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.create("", "maxim@example.com", 23)
+                ),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.create("Maxim", "invalid-email", 23)
+                ),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.create("Maxim", "maxim@example.com", -1)
+                ),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> userService.create("Maxim", "maxim@example.com", 151)
+                )
+        );
+
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void findByIdShouldReturnUser() {
         User user = new User("Maxim", "maxim@example.com", 23);
-        when(userDao.create(any(User.class))).thenReturn(user);
 
-        User result = userService.create("Maxim", "maxim@example.com", 23);
-
-        assertSame(user, result);
-        verify(userDao).create(argThat(u ->
-                u.getName().equals("Maxim") &&
-                        u.getEmail().equals("maxim@example.com") &&
-                        u.getAge() == 23));
-    }
-
-    @Test
-    void create_blankName_throwsAndDoesNotCallDao() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.create(" ", "maxim@example.com", 23));
-        verifyNoInteractions(userDao);
-    }
-
-    @Test
-    void create_invalidEmail_throwsAndDoesNotCallDao() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.create("Maxim", "not-an-email", 23));
-        verifyNoInteractions(userDao);
-    }
-
-    @Test
-    void create_ageOutOfRange_throwsAndDoesNotCallDao() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.create("Maxim", "maxim@example.com", 151));
-        verifyNoInteractions(userDao);
-    }
-
-    @Test
-    void findById_positiveId_delegatesToDao() {
-        User user = new User("Maxim", "maxim@example.com", 23);
-        when(userDao.findById(1L)).thenReturn(user);
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
 
         assertSame(user, userService.findById(1L));
-        verify(userDao).findById(1L);
     }
 
     @Test
-    void findById_nonPositiveId_throwsAndDoesNotCallDao() {
-        assertThrows(IllegalArgumentException.class, () -> userService.findById(0));
-        verifyNoInteractions(userDao);
+    void findByIdShouldRejectMissingUser() {
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                UserNotFoundException.class,
+                () -> userService.findById(1L)
+        );
     }
 
     @Test
-    void findAll_delegatesToDao() {
-        List<User> users = List.of(new User("Maxim", "maxim@example.com", 23));
-        when(userDao.findAll()).thenReturn(users);
+    void findByIdShouldRejectInvalidId() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> userService.findById(0)
+        );
+
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void findAllShouldReturnSortedUsers() {
+        List<User> users = List.of(
+                new User("Maxim", "maxim@example.com", 23),
+                new User("Anna", "anna@example.com", 25)
+        );
+
+        when(userRepository.findAll(Sort.by("id")))
+                .thenReturn(users);
 
         assertEquals(users, userService.findAll());
-        verify(userDao).findAll();
     }
 
     @Test
-    void update_validData_delegatesToDao() {
-        when(userDao.update(1L, "Maxim", "maxim@example.com", 23)).thenReturn(true);
+    void updateShouldSaveChanges() {
+        User user = new User("Before", "before@example.com", 20);
 
-        assertTrue(userService.update(1L, "Maxim", "maxim@example.com", 23));
-        verify(userDao).update(1L, "Maxim", "maxim@example.com", 23);
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
+        when(userRepository.save(user))
+                .thenReturn(user);
+
+        User result = userService.update(
+                1L,
+                " After ",
+                " after@example.com ",
+                21
+        );
+
+        assertSame(user, result);
+        assertEquals("After", result.getName());
+        assertEquals("after@example.com", result.getEmail());
+        assertEquals(21, result.getAge());
+
+        verify(userRepository).existsByEmailAndIdNot(
+                "after@example.com",
+                1L
+        );
+        verify(userRepository).save(user);
     }
 
     @Test
-    void delete_positiveId_delegatesToDao() {
-        when(userDao.delete(1L)).thenReturn(true);
+    void updateShouldRejectMissingUser() {
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.empty());
 
-        assertTrue(userService.delete(1L));
-        verify(userDao).delete(1L);
+        assertThrows(
+                UserNotFoundException.class,
+                () -> userService.update(
+                        1L,
+                        "Maxim",
+                        "maxim@example.com",
+                        23
+                )
+        );
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateShouldRejectDuplicateEmail() {
+        User user = new User("Before", "before@example.com", 20);
+
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
+        when(userRepository.existsByEmailAndIdNot("taken@example.com", 1L))
+                .thenReturn(true);
+
+        assertThrows(
+                EmailAlreadyExistsException.class,
+                () -> userService.update(
+                        1L,
+                        "After",
+                        "taken@example.com",
+                        21
+                )
+        );
+
+        assertEquals("Before", user.getName());
+        assertEquals("before@example.com", user.getEmail());
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void deleteShouldRemoveUser() {
+        User user = new User("Maxim", "maxim@example.com", 23);
+
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
+
+        userService.delete(1L);
+
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    void deleteShouldRejectMissingUser() {
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                UserNotFoundException.class,
+                () -> userService.delete(1L)
+        );
+
+        verify(userRepository, never()).delete(any(User.class));
     }
 }
-

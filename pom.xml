@@ -6,69 +6,60 @@
 
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.12</version>
+        <relativePath/>
+    </parent>
+
     <groupId>ru.example</groupId>
     <artifactId>user-service</artifactId>
     <version>1.0.0</version>
+    <name>user-service</name>
+    <description>User management REST API</description>
 
     <properties>
-        <maven.compiler.release>17</maven.compiler.release>
+        <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <hibernate.version>6.6.58.Final</hibernate.version>
-        <postgresql.version>42.7.13</postgresql.version>
-        <slf4j.version>2.0.17</slf4j.version>
-        <logback.version>1.5.18</logback.version>
-
-        <junit.version>5.14.3</junit.version>
-        <mockito.version>5.23.0</mockito.version>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
 
     <dependencies>
-        <!-- Hibernate ORM -->
+        <!-- REST API и встроенный HTTP-сервер -->
         <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-core</artifactId>
-            <version>${hibernate.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Data JPA и Hibernate -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Валидация входных DTO -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
         <!-- PostgreSQL JDBC-драйвер -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>${postgresql.version}</version>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Логирование -->
+        <!-- JUnit, Mockito и средства тестирования Spring -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>${logback.version}</version>
-        </dependency>
-
-        <!-- JUnit 5 -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
 
-        <!-- Mockito + интеграция с JUnit Jupiter -->
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-junit-jupiter</artifactId>
-            <version>${mockito.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Testcontainers: поддержка JUnit 5 -->
+        <!-- Testcontainers: интеграция с JUnit -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-junit-jupiter</artifactId>
@@ -87,37 +78,17 @@
 
     <build>
         <plugins>
-            <!-- Компиляция проекта -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
-                <configuration>
-                    <release>${maven.compiler.release}</release>
-                </configuration>
-            </plugin>
-
-            <!-- Запуск консольного приложения -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.5.0</version>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>ru.maxon.Main</mainClass>
-                    <systemProperties>
-                        <systemProperty>
-                            <key>file.encoding</key>
-                            <value>UTF-8</value>
-                        </systemProperty>
-                    </systemProperties>
                 </configuration>
             </plugin>
 
-            <!-- Запуск интеграционных тестов, оканчивающихся на IT -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.5</version>
                 <executions>
                     <execution>
                         <goals>
@@ -129,4 +100,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>

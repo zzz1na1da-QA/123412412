@@ -1,0 +1,9 @@
+### Создать пользователя
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+  "name": "Maxim",
+  "email": "maxim@example.com",
+  "age": 23
+}
